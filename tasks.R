@@ -19,6 +19,8 @@ MakeStrangeStringList <- function(string) {
   }
 }
 
+string <- "abcdef"
+MakeStrangeStringList(string) 
 
 # Task b.
 string <- "abcdef"

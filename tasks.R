@@ -5,8 +5,8 @@ MakeStrangeStringList <- function(string) {
     cat("The input have to include only letters")
   } else {
     spliedstring <- strsplit(string, split = "") %>% 
-      unlist %>% 
-      tolower
+                     unlist %>% 
+                     tolower
     makeUpper <- seq(1 ,length(spliedstring), 2)
     secstring <- spliedstring
     spliedstring[makeUpper + 1] <- toupper(spliedstring[makeUpper + 1])
@@ -27,7 +27,9 @@ string <- "abcdef"
 MakeStrangeStringList(string) 
 
 CountLetters <- function(string) {
-  sepstring <- strsplit(string, split = "") %>% unlist %>% as.factor
+  sepstring <- strsplit(string, split = "") %>% 
+                unlist %>% 
+                as.factor
   numberofrepeatedcharacters <- length(summary(sepstring)[summary(sepstring) > 1])
   return(numberofrepeatedcharacters)
 }
@@ -61,38 +63,55 @@ CountLetters(string)
 # BWA return files in sam format. I use a samtools to convert sam to bam file.
 #   samtools view -S -b MNM00065_aligned_pe_hg38.sam > MNM00065_aligned_pe_hg38.bam
 
-
-# ------ TASK3 ------ Structural variants hands-on -----------------
-# This is only a smal part of solution. I can explain more on the meeting :) 
+# -------- TASK2 ------- Structural variants hands-on --------------
 library(vcfR)
-vcf <- read.vcfR( "tumor_vs_normal.strelka.somatic.snvs.vcf.gz", verbose = FALSE )
-head(vcf)
+library(ggplot2)
+library(stringr)
 
-# 1) filter reads ...
-snp_pass <- vcf@fix[, 7] == "PASS"
-selected_variants <- vcf[snp_pass, ]
-selected_variants_to_annotations <- selected_variants@fix
+# read vcf file 
+vcf <- read.vcfR( "tumor_vs_normal.manta.somatic.vcf.gz", verbose = FALSE )
+vcfFix <- getFIX(vcf, getINFO = T) %>% as.data.frame()
 
-#2) make an anotation using biomart
-library(biomaRt)
-ensembl_snp=useMart("ENSEMBL_MART_SNP", dataset="hsapiens_snp")
+# subtask 1
+numer_of_breakends <- sum(grepl("SVTYPE=BND", vcfFix$INFO))/2
 
-chr_name <- selected_variants_to_annotations[,1] %>% as.numeric()
-allele <-  selected_variants_to_annotations[,4]
-motif_start <- selected_variants_to_annotations[,2] %>% as.numeric()
+# subtask 2
+sel_deletions <- vcfFix[grepl("VTYPE=DEL", vcfFix$INFO), ]
+sel_deletions$del_len <- sel_deletions$REF %>% nchar()
+sel_deletions$CHROM <- factor(sel_deletions$CHROM, levels = unique(sel_deletions$CHROM)) 
 
-annotations <- getBM(attributes=c("refsnp_source",
-                   'refsnp_id',
-                   'chr_name',
-                   'chrom_start',
-                   'chrom_end',
-                   "consequence_type_tv", 
-                   "clinical_significance"), 
-      values = c(chr_name, allele, motif_start),
-      mart = ensembl_snp)
+ggplot(sel_deletions, aes(x = CHROM, y = del_len)) + 
+  geom_boxplot(outlier.shape = NA) +
+  geom_point(position = position_jitter(width = 0.3), size = 0.3, color = "darkgreen") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title = "Boxplot of the deletion length per chromosome", 
+       x = "chromosome", y = "deletion length")
+  
+# subtask 3
+snp_fail <- vcfFix[vcfFix$FILTER != "PASS", ] 
+cat(nrow(snp_fail), "variants failed to pass the filtering")
 
+snp_fail_stats <- table(snp_fail[, "FILTER"]) %>% 
+                    as.data.frame()
 
+ggplot(snp_fail_stats, aes(x = "", y=Freq, fill=Var1)) +
+  geom_bar(stat = "identity", width = 1, color = "white") +
+  coord_polar("y", start = 0) +
+  theme_void() + 
+  theme(legend.position = "bottom", 
+        plot.title = element_text(hjust = 0.5)) + 
+  labs(fill = "Causes of failing:") +
+  scale_fill_manual(values = c("#d8b365", "#999999", "#5ab4ac")) + 
+  labs(title="Piechart of the most frequent reasons to fall the filtering") 
 
+# subtask 4
+cipos <- vcfFix[grepl("CIPOS", vcfFix$INFO), ]
+cipos$CI <- str_extract(cipos$INFO, "CIPOS=.[0-9]*") %>% 
+  sub("CIPOS=", "", .) %>%
+  as.numeric()
+sel_variant <- cipos[cipos$CI == min(cipos$CI), ]
 
-
-
+# subtask 5
+vcfFix[vcfFix$ID == "MantaBND:28842:0:1:0:0:0:0", ]
+# type of variant: breakends, reverse complement piece extending left of X:20306777 is joined after T

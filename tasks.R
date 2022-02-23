@@ -37,32 +37,33 @@ CountLetters(string)
 
 
 # ---TASK 1---------Preprocessing-----------------------
+# This task is only a description of workflow. I haven't install those tools on my computer.
 # step 1. 
-# using a samtools extract reads 
-# samtools required corted and indexed file:
-#samtools sort miniMNM00065.bam -o miniMNM00065.sort.bam
-#samtools index miniMNM00065.sort.bam
+# extract reads using the samtools
+#   samtools required corted and indexed file:
+#   samtools sort miniMNM00065.bam -o miniMNM00065.sort.bam
+#   samtools index miniMNM00065.sort.bam
 
 # and then extract reads: 
-#samtools view miniMNM00065.sort.bam chr1 -b > out.bam
+#   samtools view miniMNM00065.sort.bam chr1 -b > out.bam
 
 # I assume that it's paired-end sequencing (no info in the instruction)
-#samtools sort -n out.bam -o out.sort.name.bam
-#samtools fastq -1 MNM00065_1.fq.gz -2 MNM00065_2.fq.gz -s /dev/null out.sort.name.bam
+#   samtools sort -n out.bam -o out.sort.name.bam
+#   samtools fastq -1 MNM00065_1.fq.gz -2 MNM00065_2.fq.gz -s /dev/null out.sort.name.bam
   
 # step 2. 
-# index reference chromosome using bwa and mapping using bwa mem. 
-# For a bigger files I think is better to use mapper which return files in a .bam format because of storage limitations. 
-
-#bwa index chr1_hg38.fasta
-#bwa mem chr1_hg38.fasta 
+# index reference chromosome using bwa and mapping using bwa mem
+# for a bigger files I think is better to use mapper which return files in a .bam format because of storage limitations 
+#   bwa index chr1_hg38.fasta
+#   bwa mem chr1_hg38.fasta 
 #         '<zcat MNM00065_1.fq.gz>' 
 #         '<zcat MNM00065_2.fq.gz>' > MNM00065_aligned_pe_hg38.sam
 # BWA return files in sam format. I use a samtools to convert sam to bam file.
-#samtools view -S -b MNM00065_aligned_pe_hg38.sam > MNM00065_aligned_pe_hg38.bam
+#   samtools view -S -b MNM00065_aligned_pe_hg38.sam > MNM00065_aligned_pe_hg38.bam
 
 
 # ------ TASK3 ------ Structural variants hands-on -----------------
+# This is only a smal part of solution. I can explain more on the meeting :) 
 library(vcfR)
 vcf <- read.vcfR( "tumor_vs_normal.strelka.somatic.snvs.vcf.gz", verbose = FALSE )
 head(vcf)

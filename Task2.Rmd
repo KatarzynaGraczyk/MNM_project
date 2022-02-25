@@ -1,0 +1,91 @@
+---
+title: "Solution of task 2 - Structural variants hands-on"
+author: "Katarzyna Graczyk"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load required packages
+
+```{r packages, message=F}
+library(vcfR)
+library(ggplot2)
+library(stringr)
+library(knitr)
+```
+
+## Read vcf file 
+```{r message=F}
+vcf <- read.vcfR("tumor_vs_normal.manta.somatic.vcf.gz", verbose = FALSE )
+vcfFix <- getFIX(vcf, getINFO = T) %>% as.data.frame()
+```
+
+## subtask 1
+
+```{r message=F}
+numer_of_breakends <- sum(grepl("SVTYPE=BND", vcfFix$INFO))/2
+cat("Number of brackends:", numer_of_breakends)
+```
+
+## subtask 2
+
+```{r message=F}
+sel_deletions <- vcfFix[grepl("VTYPE=DEL", vcfFix$INFO), ]
+sel_deletions$del_len <- sel_deletions$REF %>% nchar()
+sel_deletions$CHROM <- factor(sel_deletions$CHROM, levels = unique(sel_deletions$CHROM)) 
+```
+
+```{r message=F}
+ggplot(sel_deletions, aes(x = CHROM, y = del_len)) + 
+  geom_boxplot(outlier.shape = NA) +
+  geom_point(position = position_jitter(width = 0.3), size = 0.5, color = "darkgreen") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title = "Boxplot of the deletion length per chromosome \n", 
+       x = "chromosome", y = "deletion length")
+```
+
+## subtask 3
+
+```{r message=F}
+snp_fail <- vcfFix[vcfFix$FILTER != "PASS", ] 
+cat("Variants failed to pass the filtering:", nrow(snp_fail))
+```
+
+```{r message=F}
+snp_fail_stats <- table(snp_fail[, "FILTER"]) %>% 
+                    as.data.frame()
+```
+
+```{r message=F}
+ggplot(snp_fail_stats, aes(x = "", y=Freq, fill=Var1)) +
+  geom_bar(stat = "identity", width = 1, color = "white") +
+  coord_polar("y", start = 0) +
+  theme_void() + 
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  labs(fill = "Causes of failing:") +
+  scale_fill_manual(values = c("#d8b365", "#999999", "#5ab4ac")) + 
+  labs(title="Piechart of the most frequent reasons to fall the filtering") 
+```
+
+## subtask 4
+
+```{r message=F}
+cipos <- vcfFix[grepl("CIPOS", vcfFix$INFO), ]
+cipos$CI <- str_extract(cipos$INFO, "CIPOS=.[0-9]*") %>% 
+  sub("CIPOS=", "", .) %>%
+  as.numeric()
+sel_variant <- cipos[cipos$CI == min(cipos$CI), ]
+
+cat("The variant with the widest confidence interval around POS:", sel_variant$ID, "at position:", sel_variant$POS)
+```
+
+## subtask 5
+
+```{r message=F}
+kable(vcfFix[vcfFix$ID == "MantaBND:28842:0:1:0:0:0:0", -8])
+```
+Type of variant: breakends, reverse complement piece extending left of X:20306777 is joined after T
